@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4 class="mb-3">New Site Report</h4>
+
+<form method="POST">
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Site Name *</label>
+          <input class="form-control" name="site_name" required>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Location</label>
+          <input class="form-control" name="location">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Report Type *</label>
+          <select class="form-select" name="report_type" required>
+            <option value="Weekly">Weekly</option>
+            <option value="Monthly">Monthly</option>
+            <option value="Incident">Incident</option>
+            <option value="Visit Report">Visit Report</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Period Start</label>
+          <input type="date" class="form-control" name="period_start">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Period End</label>
+          <input type="date" class="form-control" name="period_end">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Prepared By</label>
+          <input class="form-control" name="prepared_by">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Reporter's Title</label>
+          <input class="form-control" name="prepared_by_title">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Department</label>
+          <input class="form-control" name="department">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Office Manager</label>
+          <input class="form-control" name="office_manager">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Director of IT Department</label>
+          <input class="form-control" name="director_it">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Date Submitted</label>
+          <input type="date" class="form-control" name="date_submitted">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Overall Status</label>
+          <select class="form-select" name="overall_status">
+            <option value="Good">Good</option>
+            <option value="Stable">Stable</option>
+            <option value="Needs Attention">Needs Attention</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Executive Summary</label>
+          <textarea class="form-control" rows="3" name="executive_summary"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="mb-3">Cameras & Biometrics</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Cameras</label>
+          <div class="row g-2">
+            <div class="col-6">
+              <input type="number" min="0" class="form-control" name="cameras_live" placeholder="Live" />
+            </div>
+            <div class="col-6">
+              <input type="number" min="0" class="form-control" name="cameras_down" placeholder="Down" />
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Biometrics Access Devices</label>
+          <div class="row g-2">
+            <div class="col-6">
+              <input type="number" min="0" class="form-control" name="biometrics_live" placeholder="Live" />
+            </div>
+            <div class="col-6">
+              <input type="number" min="0" class="form-control" name="biometrics_down" placeholder="Down" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Overview -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="mb-3">Site Performance Overview</h6>
+      <div class="row g-3">
+        {% for field, label in [
+          ("network_status","Network/Internet"),
+          ("power_status","Power/UPS"),
+          ("hardware_status","Hardware"),
+          ("software_status","Software/Licensing"),
+          ("security_status","Security/Access")
+        ] %}
+        <div class="col-md-4">
+          <label class="form-label">{{ label }}</label>
+          <select class="form-select" name="{{ field }}">
+            <option value="OK">OK</option>
+            <option value="Issue">Issue</option>
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Issues -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Issues Logged</h6>
+        <button type="button" class="btn btn-sm btn-dark" onclick="addIssueRow()">+ Add Issue</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle" id="issuesTable">
+          <thead class="table-light">
+            <tr>
+              <th>Issue Title *</th>
+              <th>Area</th>
+              <th>Impact</th>
+              <th>Status</th>
+              <th>Owner</th>
+              <th>Action Taken</th>
+              <th>Root Cause</th>
+              <th>Priority</th>
+              <th>Target Date</th>
+              <th>Responsible</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- One default row -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Devices -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Devices on Site</h6>
+        <button type="button" class="btn btn-sm btn-dark" onclick="addDeviceRow()">+ Add Device</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle" id="devicesTable">
+          <thead class="table-light">
+            <tr>
+              <th>Device Name *</th>
+              <th>Hostname</th>
+              <th>Serial Number</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recommendations & Risks -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Recommendations</label>
+          <textarea class="form-control" rows="4" name="recommendations"></textarea>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Risks & Constraints</label>
+          <textarea class="form-control" rows="4" name="risks_constraints"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Conclusion</label>
+          <textarea class="form-control" rows="3" name="conclusion"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-dark">Save Report</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">Cancel</a>
+  </div>
+</form>
+
+<script>
+function issueRowHTML() {
+  return `
+  <tr>
+    <td><input class="form-control form-control-sm" name="issue_title[]" placeholder="Issue..." /></td>
+    <td><input class="form-control form-control-sm" name="area[]" placeholder="Area..." /></td>
+
+    <td>
+      <select class="form-select form-select-sm" name="impact[]">
+        <option value="Low">Low</option>
+        <option value="Medium">Medium</option>
+        <option value="High">High</option>
+        <option value="Critical">Critical</option>
+      </select>
+    </td>
+
+    <td>
+      <select class="form-select form-select-sm" name="issue_status[]">
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+    </td>
+
+    <td><input class="form-control form-control-sm" name="owner[]" placeholder="Tech/Team..." /></td>
+    <td><input class="form-control form-control-sm" name="action_taken[]" placeholder="Action..." /></td>
+    <td><input class="form-control form-control-sm" name="root_cause[]" placeholder="Root cause..." /></td>
+
+    <td>
+      <select class="form-select form-select-sm" name="priority[]">
+        <option value="Low">Low</option>
+        <option value="Medium">Medium</option>
+        <option value="High">High</option>
+        <option value="Critical">Critical</option>
+      </select>
+    </td>
+
+    <td><input type="date" class="form-control form-control-sm" name="target_date[]" /></td>
+    <td><input class="form-control form-control-sm" name="responsible[]" placeholder="Person..." /></td>
+
+    <td class="text-end">
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">x</button>
+    </td>
+  </tr>
+  `;
+}
+
+function addIssueRow() {
+  document.querySelector("#issuesTable tbody").insertAdjacentHTML("beforeend", issueRowHTML());
+}
+
+function removeRow(btn) {
+  btn.closest("tr").remove();
+}
+
+// Add first row on load
+addIssueRow();
+
+// Devices row functions
+function deviceRowHTML() {
+  return `
+  <tr>
+    <td><input class="form-control form-control-sm" name="device_name[]" placeholder="Device name..." required /></td>
+    <td><input class="form-control form-control-sm" name="hostname[]" placeholder="Hostname..." /></td>
+    <td><input class="form-control form-control-sm" name="serial_number[]" placeholder="Serial..." /></td>
+    <td>
+      <select class="form-select form-select-sm" name="device_status[]">
+        <option value="Good">Good</option>
+        <option value="Under repair">Under repair</option>
+        <option value="Broken">Broken</option>
+      </select>
+    </td>
+    <td class="text-end">
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">x</button>
+    </td>
+  </tr>
+  `;
+}
+
+function addDeviceRow() {
+  document.querySelector("#devicesTable tbody").insertAdjacentHTML("beforeend", deviceRowHTML());
+}
+
+// no default device row
+</script>
+
+{% endblock %}

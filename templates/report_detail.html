@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h4 class="mb-0">{{ report.site_name }}</h4>
+    <div class="text-muted small">
+      {{ report.location or "-" }} • {{ report.report_type }} •
+      {{ report.period_start or "-" }} → {{ report.period_end or "-" }}
+    </div>
+    <div class="text-muted small mt-2">
+      <strong>Prepared By:</strong> {{ report.prepared_by or "-" }} ({{ report.prepared_by_title or "-" }}) •
+      <strong>Department:</strong> {{ report.department or "-" }} •
+      <strong>Office Manager:</strong> {{ report.office_manager or "-" }} •
+      <strong>Director of IT:</strong> {{ report.director_it or "-" }}
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-dark btn-sm" href="{{ url_for('edit_report', report_id=report.id) }}">Edit</a>
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('download_report', report_id=report.id) }}">Download</a>
+
+    <form method="POST" action="{{ url_for('delete_report', report_id=report.id) }}"
+          onsubmit="return confirm('Delete this report?');">
+      <button class="btn btn-outline-danger btn-sm">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6>Executive Summary</h6>
+        <p class="mb-0">{{ report.executive_summary or "-" }}</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6>Issues Logged</h6>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Issue</th>
+                <th>Impact</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Owner</th>
+                <th>Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i in issues %}
+              <tr>
+                <td class="fw-semibold">{{ i.issue_title }}</td>
+                <td>{{ i.impact }}</td>
+                <td>{{ i.status }}</td>
+                <td>{{ i.priority }}</td>
+                <td>{{ i.owner }}</td>
+                <td>{{ i.target_date or "-" }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">No issues added.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6>Devices on Site</h6>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Device Name</th>
+                <th>Hostname</th>
+                <th>Serial</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in devices %}
+              <tr>
+                <td class="fw-semibold">{{ d.device_name }}</td>
+                <td>{{ d.hostname or '-' }}</td>
+                <td>{{ d.serial_number or '-' }}</td>
+                <td>{{ d.status or '-' }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">No devices added.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6>Recommendations</h6>
+        <p class="mb-0">{{ report.recommendations or "-" }}</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6>Risks & Constraints</h6>
+        <p class="mb-0">{{ report.risks_constraints or "-" }}</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6>Conclusion</h6>
+        <p class="mb-0">{{ report.conclusion or "-" }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6>Site Performance Overview</h6>
+
+        <div class="small">
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Network</span>
+            <span class="fw-semibold">{{ report.network_status }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Power</span>
+            <span class="fw-semibold">{{ report.power_status }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Hardware</span>
+            <span class="fw-semibold">{{ report.hardware_status }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+          
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Cameras</span>
+            <span class="fw-semibold">{{ report.cameras_live or 0 }} live / {{ report.cameras_down or 0 }} down</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Biometrics</span>
+            <span class="fw-semibold">{{ report.biometrics_live or 0 }} live / {{ report.biometrics_down or 0 }} down</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Software</span>
+            <span class="fw-semibold">{{ report.software_status }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-2">
+            <span>Security</span>
+            <span class="fw-semibold">{{ report.security_status }}</span>
+          </div>
+        </div>
+
+        <hr>
+        <div>
+          <span class="badge bg-secondary">Overall: {{ report.overall_status }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

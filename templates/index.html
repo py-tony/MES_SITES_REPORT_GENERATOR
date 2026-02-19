@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">All Site Reports</h4>
+    <div class="text-muted small">Search and track site performance in one place.</div>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="card shadow-sm">
+      <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+        <div class="me-3">
+          <div class="small text-muted">Total Reports</div>
+          <div class="fw-bold">{{ total_reports or 0 }}</div>
+        </div>
+
+        <div class="me-3">
+          <div class="small text-muted">Open Issues</div>
+          <div class="fw-bold text-warning">{{ total_open_issues or 0 }}</div>
+        </div>
+
+        <div class="me-3">
+          <div class="small text-muted">Devices</div>
+          <div class="fw-bold">{{ device_total or 0 }} total · <span class="text-danger">{{ device_broken or 0 }} broken</span></div>
+        </div>
+
+        <div class="ms-auto d-flex gap-2">
+          <div class="text-center">
+            <div class="small text-muted">Good</div>
+            <div class="badge bg-success">{{ status_counts['Good'] }}</div>
+          </div>
+          <div class="text-center">
+            <div class="small text-muted">Stable</div>
+            <div class="badge bg-info text-dark">{{ status_counts['Stable'] }}</div>
+          </div>
+          <div class="text-center">
+            <div class="small text-muted">Needs Attention</div>
+            <div class="badge bg-warning text-dark">{{ status_counts['Needs Attention'] }}</div>
+          </div>
+          <div class="text-center">
+            <div class="small text-muted">Critical</div>
+            <div class="badge bg-danger">{{ status_counts['Critical'] }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form class="row g-2 mb-4" method="GET">
+  <div class="col-md-4">
+    <input class="form-control" name="site" placeholder="Search by site name..." value="{{ site }}">
+  </div>
+
+  <div class="col-md-3">
+    <select class="form-select" name="status">
+      <option value="">Overall Status (All)</option>
+      <option value="Good" {{ "selected" if status=="Good" else "" }}>Good</option>
+      <option value="Stable" {{ "selected" if status=="Stable" else "" }}>Stable</option>
+      <option value="Needs Attention" {{ "selected" if status=="Needs Attention" else "" }}>Needs Attention</option>
+      <option value="Critical" {{ "selected" if status=="Critical" else "" }}>Critical</option>
+    </select>
+  </div>
+
+  <div class="col-md-3">
+    <select class="form-select" name="priority">
+      <option value="">Priority (All)</option>
+      <option value="Low" {{ "selected" if priority=="Low" else "" }}>Low</option>
+      <option value="Medium" {{ "selected" if priority=="Medium" else "" }}>Medium</option>
+      <option value="High" {{ "selected" if priority=="High" else "" }}>High</option>
+      <option value="Critical" {{ "selected" if priority=="Critical" else "" }}>Critical</option>
+    </select>
+  </div>
+
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-dark">Filter</button>
+  </div>
+</form>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Site</th>
+            <th>Type</th>
+            <th>Period</th>
+            <th>Status</th>
+            <th>Open Issues</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reports %}
+          <tr>
+            <td class="fw-semibold">{{ r.site_name }}</td>
+            <td>{{ r.report_type }}</td>
+            <td class="small text-muted">
+              {{ r.period_start or "-" }} → {{ r.period_end or "-" }}
+            </td>
+            <td>
+              <span class="badge bg-secondary">{{ r.overall_status }}</span>
+            </td>
+            <td>
+              <span class="badge bg-warning text-dark">{{ r.open_issues }}</span>
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-dark" href="{{ url_for('report_detail', report_id=r.id) }}">
+                View
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              No reports found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
