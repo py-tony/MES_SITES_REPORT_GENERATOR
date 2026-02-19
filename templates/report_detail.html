@@ -12,7 +12,8 @@
       <strong>Prepared By:</strong> {{ report.prepared_by or "-" }} ({{ report.prepared_by_title or "-" }}) •
       <strong>Department:</strong> {{ report.department or "-" }} •
       <strong>Office Manager:</strong> {{ report.office_manager or "-" }} •
-      <strong>Director of IT:</strong> {{ report.director_it or "-" }}
+      <strong>Director of IT:</strong> {{ report.director_it or "-" }} •
+      <strong>Site Manager/HR:</strong> {{ report.site_manager_hr or "-" }}
     </div>
   </div>
 
@@ -85,6 +86,8 @@
                 <th>Device Name</th>
                 <th>Hostname</th>
                 <th>Serial</th>
+                <th>Software Version</th>
+                <th>HDD Capacity</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -94,6 +97,8 @@
                 <td class="fw-semibold">{{ d.device_name }}</td>
                 <td>{{ d.hostname or '-' }}</td>
                 <td>{{ d.serial_number or '-' }}</td>
+                <td>{{ d.software_version or '-' }}</td>
+                <td>{{ d.hdd_capacity or '-' }}</td>
                 <td>{{ d.status or '-' }}</td>
               </tr>
               {% else %}

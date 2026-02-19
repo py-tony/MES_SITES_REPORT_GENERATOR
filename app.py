@@ -46,6 +46,7 @@ def init_db():
         prepared_by_title TEXT,
         office_manager TEXT,
         director_it TEXT,
+        site_manager_hr TEXT,
 
         executive_summary TEXT,
         overall_status TEXT,
@@ -95,6 +96,8 @@ def init_db():
         device_name TEXT NOT NULL,
         hostname TEXT,
         serial_number TEXT,
+        software_version TEXT,
+        hdd_capacity TEXT,
         status TEXT,
         FOREIGN KEY(report_id) REFERENCES reports(id) ON DELETE CASCADE
     )
@@ -139,10 +142,26 @@ def init_db():
         alter_stmts.append("ALTER TABLE reports ADD COLUMN office_manager TEXT")
     if 'director_it' not in existing_cols:
         alter_stmts.append("ALTER TABLE reports ADD COLUMN director_it TEXT")
+    if 'site_manager_hr' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN site_manager_hr TEXT")
     if 'prepared_by_title' not in existing_cols:
         alter_stmts.append("ALTER TABLE reports ADD COLUMN prepared_by_title TEXT")
 
     for s in alter_stmts:
+        try:
+            cur.execute(s)
+        except Exception:
+            pass
+
+    # Ensure new columns exist for devices table
+    existing_device_cols = [r[1] for r in cur.execute("PRAGMA table_info(devices)").fetchall()]
+    device_alter_stmts = []
+    if 'software_version' not in existing_device_cols:
+        device_alter_stmts.append("ALTER TABLE devices ADD COLUMN software_version TEXT")
+    if 'hdd_capacity' not in existing_device_cols:
+        device_alter_stmts.append("ALTER TABLE devices ADD COLUMN hdd_capacity TEXT")
+    
+    for s in device_alter_stmts:
         try:
             cur.execute(s)
         except Exception:
@@ -335,7 +354,7 @@ def new_report():
         cur.execute("""
             INSERT INTO reports (
                 site_name, location, report_type, period_start, period_end,
-                prepared_by, department, date_submitted, prepared_by_title, office_manager, director_it,
+                prepared_by, department, date_submitted, prepared_by_title, office_manager, director_it, site_manager_hr,
                 executive_summary, overall_status,
                 network_status, power_status, hardware_status, biomedical_status,
                 cameras_live, cameras_down, biometrics_live, biometrics_down,
@@ -343,7 +362,7 @@ def new_report():
                 recommendations, risks_constraints, conclusion,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get("site_name"),
             data.get("location"),
@@ -356,6 +375,7 @@ def new_report():
             data.get("prepared_by_title"),
             data.get("office_manager"),
             data.get("director_it"),
+            data.get("site_manager_hr"),
             data.get("executive_summary"),
             data.get("overall_status"),
             data.get("network_status"),
@@ -417,6 +437,8 @@ def new_report():
         device_names = request.form.getlist("device_name[]")
         hostnames = request.form.getlist("hostname[]")
         serials = request.form.getlist("serial_number[]")
+        software_versions = request.form.getlist("software_version[]")
+        hdd_capacities = request.form.getlist("hdd_capacity[]")
         dev_statuses = request.form.getlist("device_status[]")
 
         for idx in range(len(device_names)):
@@ -426,13 +448,15 @@ def new_report():
 
             cur.execute("""
                 INSERT INTO devices (
-                    report_id, device_name, hostname, serial_number, status
-                ) VALUES (?, ?, ?, ?, ?)
+                    report_id, device_name, hostname, serial_number, software_version, hdd_capacity, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 report_id,
                 dname,
                 hostnames[idx] if idx < len(hostnames) else "",
                 serials[idx] if idx < len(serials) else "",
+                software_versions[idx] if idx < len(software_versions) else "",
+                hdd_capacities[idx] if idx < len(hdd_capacities) else "",
                 dev_statuses[idx] if idx < len(dev_statuses) else ""
             ))
 
@@ -485,7 +509,7 @@ def edit_report(report_id):
         cur.execute("""
             UPDATE reports SET
                 site_name=?, location=?, report_type=?, period_start=?, period_end=?,
-                prepared_by=?, department=?, date_submitted=?, prepared_by_title=?, office_manager=?, director_it=?,
+                prepared_by=?, department=?, date_submitted=?, prepared_by_title=?, office_manager=?, director_it=?, site_manager_hr=?,
                 executive_summary=?, overall_status=?,
                 network_status=?, power_status=?, hardware_status=?, biomedical_status=?,
                 cameras_live=?, cameras_down=?, biometrics_live=?, biometrics_down=?,
@@ -504,6 +528,7 @@ def edit_report(report_id):
             data.get("prepared_by_title"),
             data.get("office_manager"),
             data.get("director_it"),
+            data.get("site_manager_hr"),
             data.get("executive_summary"),
             data.get("overall_status"),
             data.get("network_status"),
@@ -567,6 +592,8 @@ def edit_report(report_id):
         device_names = request.form.getlist("device_name[]")
         hostnames = request.form.getlist("hostname[]")
         serials = request.form.getlist("serial_number[]")
+        software_versions = request.form.getlist("software_version[]")
+        hdd_capacities = request.form.getlist("hdd_capacity[]")
         dev_statuses = request.form.getlist("device_status[]")
 
         for idx in range(len(device_names)):
@@ -576,13 +603,15 @@ def edit_report(report_id):
 
             cur.execute("""
                 INSERT INTO devices (
-                    report_id, device_name, hostname, serial_number, status
-                ) VALUES (?, ?, ?, ?, ?)
+                    report_id, device_name, hostname, serial_number, software_version, hdd_capacity, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 report_id,
                 dname,
                 hostnames[idx] if idx < len(hostnames) else "",
                 serials[idx] if idx < len(serials) else "",
+                software_versions[idx] if idx < len(software_versions) else "",
+                hdd_capacities[idx] if idx < len(hdd_capacities) else "",
                 dev_statuses[idx] if idx < len(dev_statuses) else ""
             ))
 
@@ -665,6 +694,7 @@ def download_report(report_id):
         ["Department:", report["department"] or "-"],
         ["Office Manager:", report["office_manager"] or "-"],
         ["Director of IT Department:", report["director_it"] or "-"],
+        ["Site Manager/HR:", report["site_manager_hr"] or "-"],
         ["Date Submitted:", report["date_submitted"] or "-"],
         ["Overall Status:", report["overall_status"] or "-"]
     ]

@@ -63,6 +63,11 @@
         </div>
 
         <div class="col-md-3">
+          <label class="form-label">Site Manager/HR</label>
+          <input class="form-control" name="site_manager_hr">
+        </div>
+
+        <div class="col-md-3">
           <label class="form-label">Date Submitted</label>
           <input type="date" class="form-control" name="date_submitted">
         </div>
@@ -188,6 +193,8 @@
               <th>Device Name *</th>
               <th>Hostname</th>
               <th>Serial Number</th>
+              <th>Software Version</th>
+              <th>HDD Capacity</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -302,6 +309,8 @@ function deviceRowHTML() {
     <td><input class="form-control form-control-sm" name="device_name[]" placeholder="Device name..." required /></td>
     <td><input class="form-control form-control-sm" name="hostname[]" placeholder="Hostname..." /></td>
     <td><input class="form-control form-control-sm" name="serial_number[]" placeholder="Serial..." /></td>
+    <td><input class="form-control form-control-sm" name="software_version[]" placeholder="e.g. Windows 10 21H2" /></td>
+    <td><input class="form-control form-control-sm" name="hdd_capacity[]" placeholder="e.g. 500GB" /></td>
     <td>
       <select class="form-select form-select-sm" name="device_status[]">
         <option value="Good">Good</option>
