@@ -48,6 +48,13 @@ def init_db():
         office_manager TEXT,
         director_it TEXT,
         site_manager_hr TEXT,
+        internet_service_provider TEXT,
+        internet_ip TEXT,
+        kit_number TEXT,
+        recharge_contact TEXT,
+        wifi_password TEXT,
+        router_password TEXT,
+        internet_note TEXT,
 
         executive_summary TEXT,
         overall_status TEXT,
@@ -99,6 +106,8 @@ def init_db():
         serial_number TEXT,
         software_version TEXT,
         hdd_capacity TEXT,
+        username TEXT,
+        password TEXT,
         status TEXT,
         FOREIGN KEY(report_id) REFERENCES reports(id) ON DELETE CASCADE
     )
@@ -145,6 +154,20 @@ def init_db():
         alter_stmts.append("ALTER TABLE reports ADD COLUMN director_it TEXT")
     if 'site_manager_hr' not in existing_cols:
         alter_stmts.append("ALTER TABLE reports ADD COLUMN site_manager_hr TEXT")
+    if 'internet_service_provider' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN internet_service_provider TEXT")
+    if 'internet_ip' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN internet_ip TEXT")
+    if 'kit_number' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN kit_number TEXT")
+    if 'recharge_contact' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN recharge_contact TEXT")
+    if 'wifi_password' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN wifi_password TEXT")
+    if 'router_password' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN router_password TEXT")
+    if 'internet_note' not in existing_cols:
+        alter_stmts.append("ALTER TABLE reports ADD COLUMN internet_note TEXT")
     if 'prepared_by_title' not in existing_cols:
         alter_stmts.append("ALTER TABLE reports ADD COLUMN prepared_by_title TEXT")
 
@@ -161,6 +184,10 @@ def init_db():
         device_alter_stmts.append("ALTER TABLE devices ADD COLUMN software_version TEXT")
     if 'hdd_capacity' not in existing_device_cols:
         device_alter_stmts.append("ALTER TABLE devices ADD COLUMN hdd_capacity TEXT")
+    if 'username' not in existing_device_cols:
+        device_alter_stmts.append("ALTER TABLE devices ADD COLUMN username TEXT")
+    if 'password' not in existing_device_cols:
+        device_alter_stmts.append("ALTER TABLE devices ADD COLUMN password TEXT")
     
     for s in device_alter_stmts:
         try:
@@ -267,6 +294,7 @@ def index():
     site = request.args.get("site", "").strip()
     status = request.args.get("status", "").strip()
     priority = request.args.get("priority", "").strip()
+    report_type = request.args.get("report_type", "").strip()
 
     conn = get_db()
     cur = conn.cursor()
@@ -286,6 +314,10 @@ def index():
     if status:
         query += " AND r.overall_status = ?"
         params.append(status)
+
+    if report_type:
+        query += " AND r.report_type = ?"
+        params.append(report_type)
 
     query += " ORDER BY r.created_at DESC"
 
@@ -334,6 +366,7 @@ def index():
         reports=reports,
         site=site,
         status=status,
+        report_type=report_type,
         priority=priority,
         total_reports=total_reports,
         total_open_issues=total_open_issues,
@@ -356,6 +389,7 @@ def new_report():
             INSERT INTO reports (
                 site_name, location, report_type, period_start, period_end,
                 prepared_by, department, date_submitted, prepared_by_title, office_manager, director_it, site_manager_hr,
+                internet_service_provider, internet_ip, kit_number, recharge_contact, wifi_password, router_password, internet_note,
                 executive_summary, overall_status,
                 network_status, power_status, hardware_status, biomedical_status,
                 cameras_live, cameras_down, biometrics_live, biometrics_down,
@@ -363,7 +397,7 @@ def new_report():
                 recommendations, risks_constraints, conclusion,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get("site_name"),
             data.get("location"),
@@ -377,6 +411,13 @@ def new_report():
             data.get("office_manager"),
             data.get("director_it"),
             data.get("site_manager_hr"),
+            data.get("internet_service_provider"),
+            data.get("internet_ip"),
+            data.get("kit_number"),
+            data.get("recharge_contact"),
+            data.get("wifi_password"),
+            data.get("router_password"),
+            data.get("internet_note"),
             data.get("executive_summary"),
             data.get("overall_status"),
             data.get("network_status"),
@@ -440,6 +481,8 @@ def new_report():
         serials = request.form.getlist("serial_number[]")
         software_versions = request.form.getlist("software_version[]")
         hdd_capacities = request.form.getlist("hdd_capacity[]")
+        device_usernames = request.form.getlist("device_username[]")
+        device_passwords = request.form.getlist("device_password[]")
         dev_statuses = request.form.getlist("device_status[]")
 
         for idx in range(len(device_names)):
@@ -449,8 +492,8 @@ def new_report():
 
             cur.execute("""
                 INSERT INTO devices (
-                    report_id, device_name, hostname, serial_number, software_version, hdd_capacity, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    report_id, device_name, hostname, serial_number, software_version, hdd_capacity, username, password, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 report_id,
                 dname,
@@ -458,6 +501,8 @@ def new_report():
                 serials[idx] if idx < len(serials) else "",
                 software_versions[idx] if idx < len(software_versions) else "",
                 hdd_capacities[idx] if idx < len(hdd_capacities) else "",
+                device_usernames[idx] if idx < len(device_usernames) else "",
+                device_passwords[idx] if idx < len(device_passwords) else "",
                 dev_statuses[idx] if idx < len(dev_statuses) else ""
             ))
 
@@ -511,6 +556,7 @@ def edit_report(report_id):
             UPDATE reports SET
                 site_name=?, location=?, report_type=?, period_start=?, period_end=?,
                 prepared_by=?, department=?, date_submitted=?, prepared_by_title=?, office_manager=?, director_it=?, site_manager_hr=?,
+                internet_service_provider=?, internet_ip=?, kit_number=?, recharge_contact=?, wifi_password=?, router_password=?, internet_note=?,
                 executive_summary=?, overall_status=?,
                 network_status=?, power_status=?, hardware_status=?, biomedical_status=?,
                 cameras_live=?, cameras_down=?, biometrics_live=?, biometrics_down=?,
@@ -530,6 +576,13 @@ def edit_report(report_id):
             data.get("office_manager"),
             data.get("director_it"),
             data.get("site_manager_hr"),
+            data.get("internet_service_provider"),
+            data.get("internet_ip"),
+            data.get("kit_number"),
+            data.get("recharge_contact"),
+            data.get("wifi_password"),
+            data.get("router_password"),
+            data.get("internet_note"),
             data.get("executive_summary"),
             data.get("overall_status"),
             data.get("network_status"),
@@ -595,6 +648,8 @@ def edit_report(report_id):
         serials = request.form.getlist("serial_number[]")
         software_versions = request.form.getlist("software_version[]")
         hdd_capacities = request.form.getlist("hdd_capacity[]")
+        device_usernames = request.form.getlist("device_username[]")
+        device_passwords = request.form.getlist("device_password[]")
         dev_statuses = request.form.getlist("device_status[]")
 
         for idx in range(len(device_names)):
@@ -604,8 +659,8 @@ def edit_report(report_id):
 
             cur.execute("""
                 INSERT INTO devices (
-                    report_id, device_name, hostname, serial_number, software_version, hdd_capacity, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    report_id, device_name, hostname, serial_number, software_version, hdd_capacity, username, password, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 report_id,
                 dname,
@@ -613,6 +668,8 @@ def edit_report(report_id):
                 serials[idx] if idx < len(serials) else "",
                 software_versions[idx] if idx < len(software_versions) else "",
                 hdd_capacities[idx] if idx < len(hdd_capacities) else "",
+                device_usernames[idx] if idx < len(device_usernames) else "",
+                device_passwords[idx] if idx < len(device_passwords) else "",
                 dev_statuses[idx] if idx < len(dev_statuses) else ""
             ))
 
@@ -684,22 +741,27 @@ def download_report(report_id):
     story.append(Spacer(1, 0.2*inch))
 
     # Report header info
+    # Use the document's available width so columns auto-fit the page better
+    available_width = doc.width
+    label_col = 1.8 * inch
+    value_col = max(available_width - label_col, 2.5 * inch)
+
     header_data = [
-        ["Site Name:", report["site_name"]],
-        ["Location:", report["location"] or "-"],
-        ["Report Type:", report["report_type"]],
-        ["Period Start:", report["period_start"] or "-"],
-        ["Period End:", report["period_end"] or "-"],
-        ["Prepared By:", report["prepared_by"] or "-"],
-        ["Prepared By Title:", report["prepared_by_title"] or "-"],
-        ["Department:", report["department"] or "-"],
-        ["Office Manager:", report["office_manager"] or "-"],
-        ["Director of IT Department:", report["director_it"] or "-"],
-        ["Site Manager/HR:", report["site_manager_hr"] or "-"],
-        ["Date Submitted:", report["date_submitted"] or "-"],
-        ["Overall Status:", report["overall_status"] or "-"]
+        ["Site Name:", Paragraph(report["site_name"] or "-", styles['Normal'])],
+        ["Location:", Paragraph(report["location"] or "-", styles['Normal'])],
+        ["Report Type:", Paragraph(report["report_type"] or "-", styles['Normal'])],
+        ["Period Start:", Paragraph(report["period_start"] or "-", styles['Normal'])],
+        ["Period End:", Paragraph(report["period_end"] or "-", styles['Normal'])],
+        ["Prepared By:", Paragraph(report["prepared_by"] or "-", styles['Normal'])],
+        ["Prepared By Title:", Paragraph(report["prepared_by_title"] or "-", styles['Normal'])],
+        ["Department:", Paragraph(report["department"] or "-", styles['Normal'])],
+        ["Office Manager:", Paragraph(report["office_manager"] or "-", styles['Normal'])],
+        ["Director of IT Department:", Paragraph(report["director_it"] or "-", styles['Normal'])],
+        ["Site Manager/HR:", Paragraph(report["site_manager_hr"] or "-", styles['Normal'])],
+        ["Date Submitted:", Paragraph(report["date_submitted"] or "-", styles['Normal'])],
+        ["Overall Status:", Paragraph(report["overall_status"] or "-", styles['Normal'])]
     ]
-    header_table = Table(header_data, colWidths=[1.5*inch, 4*inch])
+    header_table = Table(header_data, colWidths=[label_col, value_col])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e8f0f8')),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
@@ -722,15 +784,16 @@ def download_report(report_id):
     story.append(Paragraph("STATUS OVERVIEW", heading_style))
     status_data = [
         ["Category", "Status"],
-        ["Network", report["network_status"] or "-"],
-        ["Power", report["power_status"] or "-"],
-        ["Hardware", report["hardware_status"] or "-"],
-        ["Cameras", f"{report['cameras_live'] or '-'} live / {report['cameras_down'] or '-'} down"],
-        ["Biometrics", f"{report['biometrics_live'] or '-'} live / {report['biometrics_down'] or '-'} down"],
-        ["Software", report["software_status"] or "-"],
-        ["Security", report["security_status"] or "-"]
+        ["Network", Paragraph(report["network_status"] or "-", styles['Normal'])],
+        ["Power", Paragraph(report["power_status"] or "-", styles['Normal'])],
+        ["Hardware", Paragraph(report["hardware_status"] or "-", styles['Normal'])],
+        ["Cameras", Paragraph(f"{report['cameras_live'] or '-'} live / {report['cameras_down'] or '-'} down", styles['Normal'])],
+        ["Biometrics", Paragraph(f"{report['biometrics_live'] or '-'} live / {report['biometrics_down'] or '-'} down", styles['Normal'])],
+        ["Software", Paragraph(report["software_status"] or "-", styles['Normal'])],
+        ["Security", Paragraph(report["security_status"] or "-", styles['Normal'])]
     ]
-    status_table = Table(status_data, colWidths=[2.5*inch, 3*inch])
+    # Use proportional widths across available width
+    status_table = Table(status_data, colWidths=[available_width * 0.35, available_width * 0.65])
     status_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4788')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -751,14 +814,15 @@ def download_report(report_id):
         issues_data = [["Issue Title", "Area", "Impact", "Status", "Priority", "Owner"]]
         for issue in issues:
             issues_data.append([
-                issue["issue_title"] or "-",
-                issue["area"] or "-",
-                issue["impact"] or "-",
-                issue["status"] or "-",
-                issue["priority"] or "-",
-                issue["owner"] or "-"
+                Paragraph(issue["issue_title"] or "-", styles['Normal']),
+                Paragraph(issue["area"] or "-", styles['Normal']),
+                Paragraph(issue["impact"] or "-", styles['Normal']),
+                Paragraph(issue["status"] or "-", styles['Normal']),
+                Paragraph(issue["priority"] or "-", styles['Normal']),
+                Paragraph(issue["owner"] or "-", styles['Normal'])
             ])
-        issues_table = Table(issues_data, colWidths=[1.2*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.8*inch])
+        # Distribute columns proportionally across the available width to avoid overlap
+        issues_table = Table(issues_data, colWidths=[available_width * 0.35, available_width * 0.13, available_width * 0.13, available_width * 0.13, available_width * 0.13, available_width * 0.13])
         issues_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4788')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -846,12 +910,22 @@ def download_all_csv():
     default_omit = set(['id', 'created_at'])
     cols = [c for c in all_cols if c not in exclude and c not in default_omit]
 
+    # Fields that contain sensitive credentials and should be hidden in CSV
+    sensitive_fields = set(['wifi_password', 'router_password'])
+
     si = StringIO()
     writer = csv.writer(si)
     writer.writerow(cols)
 
     for row in rows:
-        writer.writerow([row[c] if row[c] is not None else "" for c in cols])
+        out_row = []
+        for c in cols:
+            val = row[c] if row[c] is not None else ""
+            if c in sensitive_fields and val:
+                out_row.append('[HIDDEN]')
+            else:
+                out_row.append(val)
+        writer.writerow(out_row)
 
     mem = BytesIO()
     mem.write(si.getvalue().encode('utf-8'))

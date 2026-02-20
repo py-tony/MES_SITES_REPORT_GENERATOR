@@ -88,6 +88,8 @@
                 <th>Serial</th>
                 <th>Software Version</th>
                 <th>HDD Capacity</th>
+                <th>Username</th>
+                <th>Password</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -99,17 +101,52 @@
                 <td>{{ d.serial_number or '-' }}</td>
                 <td>{{ d.software_version or '-' }}</td>
                 <td>{{ d.hdd_capacity or '-' }}</td>
+                <td>{{ d.username or '-' }}</td>
+                <td>{{ d.password or '-' }}</td>
                 <td>{{ d.status or '-' }}</td>
               </tr>
               {% else %}
               <tr>
-                <td colspan="4" class="text-center text-muted py-3">No devices added.</td>
+                <td colspan="8" class="text-center text-muted py-3">No devices added.</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
 
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6>Type of Internet Connection</h6>
+        <div class="small">
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Service Provider</span>
+            <span class="fw-semibold">{{ report.internet_service_provider or '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>IP</span>
+            <span class="fw-semibold">{{ report.internet_ip or '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Kit number</span>
+            <span class="fw-semibold">{{ report.kit_number or '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Recharge contact</span>
+            <span class="fw-semibold">{{ report.recharge_contact or '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>WiFi password</span>
+            <span class="fw-semibold">{{ report.wifi_password or '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-2">
+            <span>Router password</span>
+            <span class="fw-semibold">{{ report.router_password or '-' }}</span>
+          </div>
+          <div class="mt-2 small text-muted">Note: {{ report.internet_note or '-' }}</div>
+        </div>
       </div>
     </div>
 

@@ -128,6 +128,8 @@
                   <th>Serial Number</th>
                   <th>Software Version</th>
                   <th>HDD Capacity</th>
+                  <th>Username</th>
+                  <th>Password</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -140,6 +142,8 @@
                   <td><input class="form-control form-control-sm" name="serial_number[]" value="{{ d.serial_number }}" /></td>
                   <td><input class="form-control form-control-sm" name="software_version[]" value="{{ d.software_version }}" /></td>
                   <td><input class="form-control form-control-sm" name="hdd_capacity[]" value="{{ d.hdd_capacity }}" /></td>
+                  <td><input class="form-control form-control-sm" name="device_username[]" value="{{ d.username }}" /></td>
+                  <td><input class="form-control form-control-sm" name="device_password[]" value="{{ d.password }}" /></td>
                   <td>
                     <select class="form-select form-select-sm" name="device_status[]">
                       {% for st in ["Good","Under repair","Broken"] %}
@@ -185,6 +189,44 @@
               <input type="number" min="0" class="form-control" name="biometrics_down" placeholder="Down" value="{{ report.biometrics_down }}" />
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Type of Internet Connection -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="mb-3">Type of Internet Connection</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Service Provider</label>
+          <input class="form-control" name="internet_service_provider" value="{{ report.internet_service_provider }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">IP</label>
+          <input class="form-control" name="internet_ip" value="{{ report.internet_ip }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Kit number</label>
+          <input class="form-control" name="kit_number" value="{{ report.kit_number }}">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Recharge number / Email</label>
+          <input class="form-control" name="recharge_contact" value="{{ report.recharge_contact }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">WiFi password</label>
+          <input class="form-control" name="wifi_password" value="{{ report.wifi_password }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Router password</label>
+          <input class="form-control" name="router_password" value="{{ report.router_password }}">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Note</label>
+          <textarea class="form-control" rows="2" name="internet_note">{{ report.internet_note }}</textarea>
         </div>
       </div>
     </div>
@@ -352,6 +394,10 @@ function deviceRowHTML() {
     <td><input class="form-control form-control-sm" name="device_name[]" placeholder="Device name..." required /></td>
     <td><input class="form-control form-control-sm" name="hostname[]" placeholder="Hostname..." /></td>
     <td><input class="form-control form-control-sm" name="serial_number[]" placeholder="Serial..." /></td>
+    <td><input class="form-control form-control-sm" name="software_version[]" placeholder="e.g. Windows 10 21H2" /></td>
+    <td><input class="form-control form-control-sm" name="hdd_capacity[]" placeholder="e.g. 500GB" /></td>
+    <td><input class="form-control form-control-sm" name="device_username[]" placeholder="username" /></td>
+    <td><input type="password" class="form-control form-control-sm" name="device_password[]" placeholder="password" /></td>
     <td>
       <select class="form-select form-select-sm" name="device_status[]">
         <option value="Good">Good</option>
