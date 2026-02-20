@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 import sqlite3
 from datetime import datetime
 import os
-from io import BytesIO
+from io import BytesIO, StringIO
+import csv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.pagesizes import letter
@@ -812,6 +813,56 @@ def download_report(report_id):
         mimetype="application/pdf",
         as_attachment=True,
         download_name=f"{report['site_name']}_Report_{report_id}.pdf"
+    )
+
+
+@app.route('/download_all_csv')
+def download_all_csv():
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Fetch all reports
+    cur.execute("SELECT * FROM reports")
+    rows = cur.fetchall()
+
+    # Determine column names and exclude heavy/text fields per user request
+    exclude = set([
+        'executive_summary',
+        'network_status',
+        'power_status',
+        'hardware_status',
+        'biomedical_status',
+        'recommendations',
+        'risks_constraints',
+        'conclusion'
+    ])
+
+    if cur.description:
+        all_cols = [c[0] for c in cur.description]
+    else:
+        all_cols = [r[1] for r in cur.execute("PRAGMA table_info(reports)").fetchall()]
+
+    # Default: omit 'id' and 'created_at' as well
+    default_omit = set(['id', 'created_at'])
+    cols = [c for c in all_cols if c not in exclude and c not in default_omit]
+
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(cols)
+
+    for row in rows:
+        writer.writerow([row[c] if row[c] is not None else "" for c in cols])
+
+    mem = BytesIO()
+    mem.write(si.getvalue().encode('utf-8'))
+    mem.seek(0)
+    conn.close()
+
+    return send_file(
+        mem,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='all_site_reports.csv'
     )
 
 
