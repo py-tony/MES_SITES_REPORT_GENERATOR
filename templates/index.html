@@ -1,13 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+.btn-gray:hover {
+  background-color: #007bff !important;
+  border-color: #007bff !important;
+}
+.btn-orange {
+  background-color: #de8e2c !important;
+  border-color: #dd8c29 !important;
+  color: white !important;
+}
+.btn-orange:hover {
+  background-color: #007bff !important;
+  border-color: #007bff !important;
+}
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h4 class="mb-0">Sites Report</h4>
     <div class="text-muted small">Search and track site performance in one place.</div>
   </div>
   <div class="d-flex gap-2">
-    <a class="btn btn-sm btn-primary" href="{{ url_for('download_all_csv') }}">Download All Sites Data</a>
+    <a class="btn btn-sm btn-secondary btn-gray" href="{{ url_for('download_all_csv') }}">Download All Sites Data</a>
+    {% if session.username == 'admin' %}
+    <a class="btn btn-sm btn-warning btn-orange" href="{{ url_for('device_passwords') }}">Device Passwords</a>
+    {% endif %}
   </div>
 </div>
 

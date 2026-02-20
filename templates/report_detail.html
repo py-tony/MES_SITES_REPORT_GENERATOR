@@ -102,7 +102,7 @@
                 <td>{{ d.software_version or '-' }}</td>
                 <td>{{ d.hdd_capacity or '-' }}</td>
                 <td>{{ d.username or '-' }}</td>
-                <td>{{ d.password or '-' }}</td>
+                <td>{{ d.password and '[HIDDEN]' or '-' }}</td>
                 <td>{{ d.status or '-' }}</td>
               </tr>
               {% else %}
@@ -139,11 +139,11 @@
           </div>
           <div class="d-flex justify-content-between border-bottom py-2">
             <span>WiFi password</span>
-            <span class="fw-semibold">{{ report.wifi_password or '-' }}</span>
+            <span class="fw-semibold">{{ report.wifi_password and '[HIDDEN]' or '-' }}</span>
           </div>
           <div class="d-flex justify-content-between py-2">
             <span>Router password</span>
-            <span class="fw-semibold">{{ report.router_password or '-' }}</span>
+            <span class="fw-semibold">{{ report.router_password and '[HIDDEN]' or '-' }}</span>
           </div>
           <div class="mt-2 small text-muted">Note: {{ report.internet_note or '-' }}</div>
         </div>

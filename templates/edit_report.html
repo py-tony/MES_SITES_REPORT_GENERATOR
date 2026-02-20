@@ -143,7 +143,7 @@
                   <td><input class="form-control form-control-sm" name="software_version[]" value="{{ d.software_version }}" /></td>
                   <td><input class="form-control form-control-sm" name="hdd_capacity[]" value="{{ d.hdd_capacity }}" /></td>
                   <td><input class="form-control form-control-sm" name="device_username[]" value="{{ d.username }}" /></td>
-                  <td><input class="form-control form-control-sm" name="device_password[]" value="{{ d.password }}" /></td>
+                  <td><input class="form-control form-control-sm" name="device_password[]" placeholder="Leave blank to keep current" /></td>
                   <td>
                     <select class="form-select form-select-sm" name="device_status[]">
                       {% for st in ["Good","Under repair","Broken"] %}
@@ -217,11 +217,11 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">WiFi password</label>
-          <input class="form-control" name="wifi_password" value="{{ report.wifi_password }}">
+          <input class="form-control" name="wifi_password" placeholder="Leave blank to keep current">
         </div>
         <div class="col-md-4">
           <label class="form-label">Router password</label>
-          <input class="form-control" name="router_password" value="{{ report.router_password }}">
+          <input class="form-control" name="router_password" placeholder="Leave blank to keep current">
         </div>
 
         <div class="col-12">

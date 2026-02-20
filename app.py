@@ -126,12 +126,12 @@ def init_db():
     
     # Initialize default account if it doesn't exist
     try:
-        existing_user = cur.execute("SELECT id FROM users WHERE username = ?", ("IT",)).fetchone()
+        existing_user = cur.execute("SELECT id FROM users WHERE username = ?", ("admin",)).fetchone()
         if not existing_user:
             default_password = generate_password_hash("Mes@2026")
             cur.execute(
                 "INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)",
-                ("IT", default_password, datetime.utcnow().isoformat())
+                ("admin", default_password, datetime.utcnow().isoformat())
             )
             conn.commit()
     except Exception:
@@ -580,8 +580,8 @@ def edit_report(report_id):
             data.get("internet_ip"),
             data.get("kit_number"),
             data.get("recharge_contact"),
-            data.get("wifi_password"),
-            data.get("router_password"),
+            data.get("wifi_password") or report["wifi_password"],
+            data.get("router_password") or report["router_password"],
             data.get("internet_note"),
             data.get("executive_summary"),
             data.get("overall_status"),
@@ -938,6 +938,50 @@ def download_all_csv():
         as_attachment=True,
         download_name='all_site_reports.csv'
     )
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or session.get('username') != 'admin':
+            flash("Access denied. Admin required.", "danger")
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route('/device_passwords', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def device_passwords():
+    if request.method == 'POST':
+        password = request.form.get('admin_password')
+        if not password:
+            flash("Password required.", "danger")
+            return render_template('device_passwords.html', show_form=True, devices=None)
+
+        conn = get_db()
+        cur = conn.cursor()
+        admin = cur.execute("SELECT password FROM users WHERE username = 'admin'").fetchone()
+        conn.close()
+
+        if admin and check_password_hash(admin['password'], password):
+            # Fetch devices
+            conn = get_db()
+            cur = conn.cursor()
+            devices = cur.execute("""
+                SELECT r.site_name, d.device_name, d.username, d.password, r.wifi_password, r.router_password
+                FROM devices d
+                JOIN reports r ON d.report_id = r.id
+                ORDER BY r.site_name, d.device_name
+            """).fetchall()
+            conn.close()
+            return render_template('device_passwords.html', show_form=False, devices=devices)
+        else:
+            flash("Incorrect password.", "danger")
+            return render_template('device_passwords.html', show_form=True, devices=None)
+    else:
+        return render_template('device_passwords.html', show_form=True, devices=None)
 
 
 if __name__ == "__main__":
