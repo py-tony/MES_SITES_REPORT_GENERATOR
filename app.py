@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session
+from flask_login import LoginManager, login_required, login_user, logout_user, current_user, UserMixin
 import sqlite3
 from datetime import datetime
 import os
@@ -12,12 +13,52 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+import random
+import string
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = "mes_report_app_secret_key_2026"
 
+# Flask-Login Setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = "Please log in to access this page."
+
 DB_PATH = os.path.join(app.instance_path, "site_reports.db")
 
+# Admin email configuration
+ADMIN_EMAIL = "byamungutony@gmail.com"
+
+# ----------------------------
+# User class for Flask-Login
+# ----------------------------
+class User(UserMixin):
+    def __init__(self, user_id, username, email, role):
+        self.id = user_id
+        self.username = username
+        self.email = email
+        self.role = role
+
+    @staticmethod
+    def get_from_db(user_id):
+        conn = get_db()
+        cur = conn.cursor()
+        user = cur.execute("SELECT id, username, email, role FROM users WHERE id = ?", (user_id,)).fetchone()
+        conn.close()
+        if user:
+            return User(user[0], user[1], user[2], user[3])
+        return None
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.get_from_db(int(user_id))
 
 # ----------------------------
 # DB helpers
@@ -27,11 +68,24 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-# Initialize DB and create tables if they don't exist
 
 def init_db():
     conn = get_db()
     cur = conn.cursor()
+
+    # Users table with new schema
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'technician',
+        verified INTEGER DEFAULT 0,
+        verification_code TEXT,
+        created_at TEXT NOT NULL
+    )
+    """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS reports (
@@ -113,29 +167,38 @@ def init_db():
     )
     """)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-    """)
-
     conn.commit()
     
-    # Initialize default account if it doesn't exist
-    try:
-        existing_user = cur.execute("SELECT id FROM users WHERE username = ?", ("admin",)).fetchone()
-        if not existing_user:
-            default_password = generate_password_hash("Mes@2026")
-            cur.execute(
-                "INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)",
-                ("admin", default_password, datetime.utcnow().isoformat())
-            )
-            conn.commit()
-    except Exception:
-        pass
+    # Initialize default accounts if they don't exist, or update if they do
+    admin_exists = cur.execute("SELECT id FROM users WHERE username = ?", ("admin",)).fetchone()
+    if not admin_exists:
+        admin_password = generate_password_hash("Mes@2026")
+        cur.execute(
+            "INSERT INTO users (username, email, password, role, verified, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("admin", ADMIN_EMAIL, admin_password, "admin", 1, datetime.utcnow().isoformat())
+        )
+    else:
+        # Update existing admin account to be verified
+        cur.execute(
+            "UPDATE users SET verified = 1, role = 'admin', email = ? WHERE username = 'admin'",
+            (ADMIN_EMAIL,)
+        )
+    
+    tech_exists = cur.execute("SELECT id FROM users WHERE username = ?", ("IT",)).fetchone()
+    if not tech_exists:
+        tech_password = generate_password_hash("Mes@2026")
+        cur.execute(
+            "INSERT INTO users (username, email, password, role, verified, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("IT", "it@localhost", tech_password, "technician", 1, datetime.utcnow().isoformat())
+        )
+    else:
+        # Update existing IT account to be verified
+        cur.execute(
+            "UPDATE users SET verified = 1, role = 'technician', email = ? WHERE username = 'IT'",
+            ("it@localhost",)
+        )
+    
+    conn.commit()
 
     # Ensure new columns exist for existing DBs (backwards-compatible migration)
     existing_cols = [r[1] for r in cur.execute("PRAGMA table_info(reports)").fetchall()]
@@ -195,42 +258,125 @@ def init_db():
         except Exception:
             pass
 
+    # Add email, role, verified, verification_code columns to existing users table
+    existing_user_cols = [r[1] for r in cur.execute("PRAGMA table_info(users)").fetchall()]
+    user_alter_stmts = []
+    if 'email' not in existing_user_cols:
+        user_alter_stmts.append("ALTER TABLE users ADD COLUMN email TEXT")
+    if 'role' not in existing_user_cols:
+        user_alter_stmts.append("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'technician'")
+    if 'verified' not in existing_user_cols:
+        user_alter_stmts.append("ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 0")
+    if 'verification_code' not in existing_user_cols:
+        user_alter_stmts.append("ALTER TABLE users ADD COLUMN verification_code TEXT")
+
+    for s in user_alter_stmts:
+        try:
+            cur.execute(s)
+        except Exception:
+            pass
+
+    conn.commit()
+    
+    # Final sanity check: ensure both default accounts are verified and have correct role
+    cur.execute("UPDATE users SET verified = 1, role = 'admin' WHERE username = 'admin'")
+    cur.execute("UPDATE users SET verified = 1, role = 'technician' WHERE username = 'IT'")
     conn.commit()
     conn.close()
-
 
 @app.before_request
 def startup():
     init_db()
 
+# ----------------------------
+# Email helper
+# ----------------------------
+def generate_verification_code():
+    """Generate a random 6-digit verification code"""
+    return ''.join(random.choices(string.digits, k=6))
+
+def send_verification_email(email, username, verification_code):
+    """Send verification code to admin email"""
+    try:
+        sender_email = os.getenv("SENDER_EMAIL", ADMIN_EMAIL)
+        sender_password = os.getenv("SENDER_PASSWORD", "")
+        
+        # If no SMTP credentials, skip email sending
+        if not sender_password:
+            return True  # Proceed anyway in demo mode
+
+        subject = f"New User Registration - Verification Code"
+        body = f"""
+        A new user has registered with the following details:
+        
+        Username: {username}
+        Email: {email}
+        Verification Code: {verification_code}
+        
+        Please provide the verification code to the user to complete registration.
+        """
+
+        msg = MIMEMultipart()
+        msg["From"] = sender_email
+        msg["To"] = ADMIN_EMAIL
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Email error: {e}")
+        return False
 
 # ----------------------------
-# Authentication helpers
+# Access Control Decorators
 # ----------------------------
-def login_required(f):
+def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash("Please log in first.", "warning")
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash("Access denied. Admin privileges required.", "danger")
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def technician_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role not in ['admin', 'technician']:
+            flash("Access denied.", "danger")
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
 
-
+# ----------------------------
+# Authentication Routes
+# ----------------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
         conn = get_db()
         cur = conn.cursor()
-        user = cur.execute("SELECT id, username, password FROM users WHERE username = ?", (username,)).fetchone()
+        user = cur.execute("SELECT id, username, email, password, role, verified FROM users WHERE username = ?", (username,)).fetchone()
         conn.close()
 
         if user and check_password_hash(user["password"], password):
-            session['user_id'] = user["id"]
-            session['username'] = user["username"]
+            if not user["verified"]:
+                flash("Your account is pending verification. Please contact the administrator.", "warning")
+                return redirect(url_for("login"))
+            
+            user_obj = User(user[0], user[1], user[2], user[4])
+            login_user(user_obj, remember=False)
             flash(f"Welcome back, {user['username']}!", "success")
             return redirect(url_for("index"))
         else:
@@ -238,16 +384,20 @@ def login():
 
     return render_template("login.html")
 
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    
     if request.method == "POST":
         username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
 
-        if not username or not password:
-            flash("Username and password are required.", "warning")
+        # Validation
+        if not username or not email or not password:
+            flash("Username, email, and password are required.", "warning")
             return redirect(url_for("register"))
 
         if password != confirm_password:
@@ -261,29 +411,81 @@ def register():
         conn = get_db()
         cur = conn.cursor()
 
+        # Check if user already exists
+        existing = cur.execute("SELECT id FROM users WHERE username = ? OR email = ?", (username, email)).fetchone()
+        if existing:
+            conn.close()
+            flash("Username or email already exists.", "danger")
+            return redirect(url_for("register"))
+
+        # Generate verification code
+        verification_code = generate_verification_code()
+        hashed_password = generate_password_hash(password)
+
         try:
-            hashed_password = generate_password_hash(password)
+            # Insert user with unverified status
             cur.execute(
-                "INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)",
-                (username, hashed_password, datetime.utcnow().isoformat())
+                "INSERT INTO users (username, email, password, role, verified, verification_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (username, email, hashed_password, "technician", 0, verification_code, datetime.utcnow().isoformat())
             )
             conn.commit()
-            flash(f"Account created! Please log in.", "success")
-            return redirect(url_for("login"))
-        except sqlite3.IntegrityError:
-            flash("Username already exists.", "danger")
-        finally:
+
+            # Send verification code to admin
+            send_verification_email(email, username, verification_code)
+
             conn.close()
+            flash(f"Account created! A verification code has been sent to the administrator. Please enter the code you receive.", "success")
+            return render_template("verify_code.html", username=username, email=email)
+        except Exception as e:
+            conn.close()
+            flash(f"Error creating account: {str(e)}", "danger")
+            return redirect(url_for("register"))
 
     return render_template("register.html")
 
+@app.route("/verify", methods=["POST"])
+def verify_code():
+    """Verify the registration code"""
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip()
+    code = request.form.get("verification_code", "").strip()
+
+    if not code:
+        flash("Verification code is required.", "warning")
+        return render_template("verify_code.html", username=username, email=email)
+
+    conn = get_db()
+    cur = conn.cursor()
+    user = cur.execute("SELECT id, verification_code, verified FROM users WHERE username = ? AND email = ?", (username, email)).fetchone()
+
+    if not user:
+        conn.close()
+        flash("User not found.", "danger")
+        return redirect(url_for("register"))
+
+    if user["verified"]:
+        conn.close()
+        flash("User is already verified.", "info")
+        return redirect(url_for("login"))
+
+    if user["verification_code"] == code:
+        # Verification successful
+        cur.execute("UPDATE users SET verified = 1, verification_code = NULL WHERE id = ?", (user["id"],))
+        conn.commit()
+        conn.close()
+        flash("Email verified successfully! You can now log in.", "success")
+        return redirect(url_for("login"))
+    else:
+        conn.close()
+        flash("Invalid verification code.", "danger")
+        return render_template("verify_code.html", username=username, email=email)
 
 @app.route("/logout")
+@login_required
 def logout():
-    session.clear()
+    logout_user()
     flash("Logged out successfully.", "info")
     return redirect(url_for("login"))
-
 
 # ----------------------------
 # Protected Routes
@@ -524,7 +726,6 @@ def report_detail(report_id):
     report = cur.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
     issues = cur.execute("SELECT * FROM issues WHERE report_id = ? ORDER BY id DESC", (report_id,)).fetchall()
     devices = cur.execute("SELECT * FROM devices WHERE report_id = ? ORDER BY id DESC", (report_id,)).fetchall()
-    devices = cur.execute("SELECT * FROM devices WHERE report_id = ? ORDER BY id DESC", (report_id,)).fetchall()
 
     conn.close()
 
@@ -741,7 +942,6 @@ def download_report(report_id):
     story.append(Spacer(1, 0.2*inch))
 
     # Report header info
-    # Use the document's available width so columns auto-fit the page better
     available_width = doc.width
     label_col = 1.8 * inch
     value_col = max(available_width - label_col, 2.5 * inch)
@@ -792,7 +992,6 @@ def download_report(report_id):
         ["Software", Paragraph(report["software_status"] or "-", styles['Normal'])],
         ["Security", Paragraph(report["security_status"] or "-", styles['Normal'])]
     ]
-    # Use proportional widths across available width
     status_table = Table(status_data, colWidths=[available_width * 0.35, available_width * 0.65])
     status_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4788')),
@@ -821,7 +1020,6 @@ def download_report(report_id):
                 Paragraph(issue["priority"] or "-", styles['Normal']),
                 Paragraph(issue["owner"] or "-", styles['Normal'])
             ])
-        # Distribute columns proportionally across the available width to avoid overlap
         issues_table = Table(issues_data, colWidths=[available_width * 0.35, available_width * 0.13, available_width * 0.13, available_width * 0.13, available_width * 0.13, available_width * 0.13])
         issues_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4788')),
@@ -852,7 +1050,6 @@ def download_report(report_id):
     story.append(Paragraph(report["conclusion"] or "-", styles['Normal']))
 
     # Build PDF
-    # Draw logo on the first page
     def on_first_page(canvas, doc_obj):
         canvas.saveState()
         width, height = doc_obj.pagesize
@@ -881,7 +1078,10 @@ def download_report(report_id):
 
 
 @app.route('/download_all_csv')
+@login_required
+@admin_required
 def download_all_csv():
+    """Admin-only CSV download for all reports"""
     conn = get_db()
     cur = conn.cursor()
 
@@ -889,7 +1089,7 @@ def download_all_csv():
     cur.execute("SELECT * FROM reports")
     rows = cur.fetchall()
 
-    # Determine column names and exclude heavy/text fields per user request
+    # Determine column names and exclude heavy/text fields
     exclude = set([
         'executive_summary',
         'network_status',
@@ -940,20 +1140,11 @@ def download_all_csv():
     )
 
 
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('username') != 'admin':
-            flash("Access denied. Admin required.", "danger")
-            return redirect(url_for('index'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 @app.route('/device_passwords', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def device_passwords():
+    """Admin-only page to view device passwords after password confirmation"""
     if request.method == 'POST':
         password = request.form.get('admin_password')
         if not password:
