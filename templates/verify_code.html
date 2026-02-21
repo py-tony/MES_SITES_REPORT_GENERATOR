@@ -8,13 +8,27 @@
           <div class="text-center mb-3">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" height="70">
             <h4 class="mt-2">Verify Your Email</h4>
-            <p class="text-muted">Almost done! Enter the verification code sent to the administrator</p>
+            {% if demo_mode %}
+              <p class="text-muted">Demo mode: Your verification code is below</p>
+            {% else %}
+              <p class="text-muted">Almost done! Enter the verification code sent to the administrator</p>
+            {% endif %}
           </div>
 
           <div class="alert alert-info" role="alert">
             <strong>Username:</strong> {{ username }}<br>
             <strong>Email:</strong> {{ email }}
           </div>
+
+          {% if verification_code %}
+            <div class="alert alert-warning" role="alert">
+              <strong>Your Verification Code (Demo Mode):</strong><br>
+              <div class="text-center mt-2">
+                <span style="font-size: 24px; font-weight: bold; font-family: monospace; letter-spacing: 4px;">{{ verification_code }}</span>
+              </div>
+              <small class="d-block mt-3">Copy this code and paste it below to verify your account.</small>
+            </div>
+          {% endif %}
 
           <form method="post" action="{{ url_for('verify_code') }}">
             <input type="hidden" name="username" value="{{ username }}">
@@ -24,7 +38,9 @@
               <label for="verification_code" class="form-label">Verification Code</label>
               <input type="text" class="form-control form-control-lg text-center" id="verification_code" name="verification_code" 
                      placeholder="Enter 6-digit code" maxlength="6" required autofocus>
-              <small class="form-text text-muted">A 6-digit code has been sent to the administrator. Ask the administrator for the code.</small>
+              {% if not demo_mode %}
+                <small class="form-text text-muted">A 6-digit code has been sent to the administrator. Ask the administrator for the code.</small>
+              {% endif %}
             </div>
             
             <div class="d-grid">

@@ -296,25 +296,37 @@ def generate_verification_code():
     return ''.join(random.choices(string.digits, k=6))
 
 def send_verification_email(email, username, verification_code):
-    """Send verification code to admin email"""
+    """Send verification code to admin email.
+
+    Supports configurable SMTP via environment variables:
+      SENDER_EMAIL (defaults to ADMIN_EMAIL)
+      SENDER_PASSWORD (if provided, login will be attempted)
+      SENDER_SMTP (defaults to smtp.gmail.com)
+      SENDER_PORT (defaults to 587)
+      SENDER_USE_TLS (1/0 or true/false, defaults to 1)
+      SENDER_USE_SSL (1/0 or true/false, defaults to 0)
+
+    If no password is provided the function will attempt an unauthenticated send
+    (useful for localhost SMTP servers). Returns True on success, False on error.
+    """
     try:
         sender_email = os.getenv("SENDER_EMAIL", ADMIN_EMAIL)
         sender_password = os.getenv("SENDER_PASSWORD", "")
-        
-        # If no SMTP credentials, skip email sending
-        if not sender_password:
-            return True  # Proceed anyway in demo mode
+        smtp_host = os.getenv("SENDER_SMTP", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SENDER_PORT", "587"))
+        use_tls = os.getenv("SENDER_USE_TLS", "1").lower() in ("1", "true", "yes")
+        use_ssl = os.getenv("SENDER_USE_SSL", "0").lower() in ("1", "true", "yes")
 
         subject = f"New User Registration - Verification Code"
         body = f"""
-        A new user has registered with the following details:
-        
-        Username: {username}
-        Email: {email}
-        Verification Code: {verification_code}
-        
-        Please provide the verification code to the user to complete registration.
-        """
+A new user has registered with the following details:
+
+Username: {username}
+Email: {email}
+Verification Code: {verification_code}
+
+Please provide the verification code to the user to complete registration.
+"""
 
         msg = MIMEMultipart()
         msg["From"] = sender_email
@@ -322,9 +334,21 @@ def send_verification_email(email, username, verification_code):
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
 
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
+        # Connect to SMTP server (support SSL, TLS, or plain localhost delivery)
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+            if use_tls:
+                try:
+                    server.starttls()
+                except Exception:
+                    pass
+
+        # Authenticate if credentials provided
+        if sender_password:
+            server.login(sender_email, sender_password)
+
         server.send_message(msg)
         server.quit()
         return True
@@ -430,12 +454,18 @@ def register():
             )
             conn.commit()
 
-            # Send verification code to admin
-            send_verification_email(email, username, verification_code)
+            # Send verification code to admin (attempt)
+            email_sent = send_verification_email(email, username, verification_code)
 
             conn.close()
-            flash(f"Account created! A verification code has been sent to the administrator. Please enter the code you receive.", "success")
-            return render_template("verify_code.html", username=username, email=email)
+
+            if email_sent:
+                flash("Account created! A verification code has been sent to the administrator. Please enter the code you receive.", "success")
+                return render_template("verify_code.html", username=username, email=email, verification_code=None, demo_mode=False)
+            else:
+                # Fallback: show code in demo mode if sending failed
+                flash("Account created but we could not send email. Displaying verification code (demo mode).", "warning")
+                return render_template("verify_code.html", username=username, email=email, verification_code=verification_code, demo_mode=True)
         except Exception as e:
             conn.close()
             flash(f"Error creating account: {str(e)}", "danger")
