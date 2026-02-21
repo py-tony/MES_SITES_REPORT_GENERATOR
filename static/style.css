@@ -1,3 +1,30 @@
 body { background: #f8f9fa; }
 .card { border-radius: 8px; }
 .navbar-brand img { border-radius: 4px; }
+
+/* Password toggle button styling */
+.input-group .btn-outline-secondary {
+  border: 1px solid #dee2e6;
+  color: #666;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.input-group .btn-outline-secondary:hover {
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.input-group .btn-outline-secondary:active,
+.input-group .btn-outline-secondary:focus {
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+  box-shadow: none;
+}
+
+.input-group .btn-outline-secondary i {
+  font-style: normal;
+  pointer-events: none;
+}

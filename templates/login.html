@@ -17,13 +17,40 @@
             </div>
             <div class="mb-3">
               <label for="password" class="form-label">Password</label>
-              <input type="password" class="form-control" id="password" name="password" required>
+              <div class="input-group">
+                <input type="password" class="form-control" id="password" name="password" required>
+                <button class="btn btn-outline-secondary" type="button" id="togglePassword" onclick="togglePasswordVisibility('password')">
+                  <i class="bi bi-eye" id="togglePassword_icon">👁️</i>
+                </button>
+              </div>
             </div>
             <div class="d-grid">
               <button type="submit" class="btn btn-primary">Login</button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <script>
+    function togglePasswordVisibility(fieldId) {
+      const field = document.getElementById(fieldId);
+      const icon = document.getElementById(fieldId + '_icon');
+      if (field.type === 'password') {
+        field.type = 'text';
+        icon.textContent = '🙈';
+      } else {
+        field.type = 'password';
+        icon.textContent = '👁️';
+      }
+    }
+  </script>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body">
           <div class="mt-3 text-center">
             <a href="{{ url_for('register') }}">Create an account</a>
           </div>

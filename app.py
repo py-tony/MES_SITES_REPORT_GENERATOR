@@ -317,6 +317,12 @@ def send_verification_email(email, username, verification_code):
         use_tls = os.getenv("SENDER_USE_TLS", "1").lower() in ("1", "true", "yes")
         use_ssl = os.getenv("SENDER_USE_SSL", "0").lower() in ("1", "true", "yes")
 
+        # Debug logging
+        print(f"[EMAIL] Attempting to send verification code")
+        print(f"[EMAIL] SMTP: {smtp_host}:{smtp_port} (TLS={use_tls}, SSL={use_ssl})")
+        print(f"[EMAIL] From: {sender_email} | To: {ADMIN_EMAIL}")
+        print(f"[EMAIL] Auth: {'Yes (with password)' if sender_password else 'No (unauthenticated)'}")
+
         subject = f"New User Registration - Verification Code"
         body = f"""
 A new user has registered with the following details:
@@ -335,25 +341,34 @@ Please provide the verification code to the user to complete registration.
         msg.attach(MIMEText(body, "plain"))
 
         # Connect to SMTP server (support SSL, TLS, or plain localhost delivery)
+        print(f"[EMAIL] Connecting to SMTP server...")
         if use_ssl:
             server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
         else:
             server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
             if use_tls:
+                print(f"[EMAIL] Initiating STARTTLS...")
                 try:
                     server.starttls()
-                except Exception:
-                    pass
+                    print(f"[EMAIL] STARTTLS successful")
+                except Exception as e:
+                    print(f"[EMAIL] STARTTLS failed (continuing): {e}")
 
         # Authenticate if credentials provided
         if sender_password:
+            print(f"[EMAIL] Authenticating with {sender_email}...")
             server.login(sender_email, sender_password)
+            print(f"[EMAIL] Authentication successful")
 
+        print(f"[EMAIL] Sending message...")
         server.send_message(msg)
+        print(f"[EMAIL] Message sent successfully")
         server.quit()
         return True
     except Exception as e:
-        print(f"Email error: {e}")
+        print(f"[EMAIL] ERROR: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 # ----------------------------
@@ -435,47 +450,45 @@ def register():
         conn = get_db()
         cur = conn.cursor()
 
-        # Check if user already exists
+        # Check if user already exists in database
         existing = cur.execute("SELECT id FROM users WHERE username = ? OR email = ?", (username, email)).fetchone()
         if existing:
             conn.close()
             flash("Username or email already exists.", "danger")
             return redirect(url_for("register"))
 
-        # Generate verification code
+        conn.close()
+
+        # Generate verification code and hash password
         verification_code = generate_verification_code()
         hashed_password = generate_password_hash(password)
 
-        try:
-            # Insert user with unverified status
-            cur.execute(
-                "INSERT INTO users (username, email, password, role, verified, verification_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (username, email, hashed_password, "technician", 0, verification_code, datetime.utcnow().isoformat())
-            )
-            conn.commit()
+        # Store registration data in session (do NOT save to DB yet)
+        session['pending_registration'] = {
+            'username': username,
+            'email': email,
+            'hashed_password': hashed_password,
+            'verification_code': verification_code,
+            'created_at': datetime.utcnow().isoformat()
+        }
+        print(f"[REGISTER] Stored pending registration in session for {username}")
 
-            # Send verification code to admin (attempt)
-            email_sent = send_verification_email(email, username, verification_code)
+        # Send verification code to admin (attempt)
+        email_sent = send_verification_email(email, username, verification_code)
 
-            conn.close()
-
-            if email_sent:
-                flash("Account created! A verification code has been sent to the administrator. Please enter the code you receive.", "success")
-                return render_template("verify_code.html", username=username, email=email, verification_code=None, demo_mode=False)
-            else:
-                # Fallback: show code in demo mode if sending failed
-                flash("Account created but we could not send email. Displaying verification code (demo mode).", "warning")
-                return render_template("verify_code.html", username=username, email=email, verification_code=verification_code, demo_mode=True)
-        except Exception as e:
-            conn.close()
-            flash(f"Error creating account: {str(e)}", "danger")
-            return redirect(url_for("register"))
+        if email_sent:
+            flash("Registration initiated! A verification code has been sent to the administrator. Please enter the code you receive.", "success")
+            return render_template("verify_code.html", username=username, email=email, verification_code=None, demo_mode=False)
+        else:
+            # Fallback: show code in demo mode if sending failed
+            flash("Email not configured. Displaying verification code (demo mode).", "info")
+            return render_template("verify_code.html", username=username, email=email, verification_code=verification_code, demo_mode=True)
 
     return render_template("register.html")
 
 @app.route("/verify", methods=["POST"])
 def verify_code():
-    """Verify the registration code"""
+    """Verify the registration code and save user to database only after validation"""
     username = request.form.get("username", "").strip()
     email = request.form.get("email", "").strip()
     code = request.form.get("verification_code", "").strip()
@@ -484,31 +497,48 @@ def verify_code():
         flash("Verification code is required.", "warning")
         return render_template("verify_code.html", username=username, email=email)
 
-    conn = get_db()
-    cur = conn.cursor()
-    user = cur.execute("SELECT id, verification_code, verified FROM users WHERE username = ? AND email = ?", (username, email)).fetchone()
-
-    if not user:
-        conn.close()
-        flash("User not found.", "danger")
+    # Check if registration data is in session
+    pending_reg = session.get('pending_registration')
+    if not pending_reg:
+        flash("Registration session expired. Please register again.", "danger")
         return redirect(url_for("register"))
 
-    if user["verified"]:
-        conn.close()
-        flash("User is already verified.", "info")
-        return redirect(url_for("login"))
-
-    if user["verification_code"] == code:
-        # Verification successful
-        cur.execute("UPDATE users SET verified = 1, verification_code = NULL WHERE id = ?", (user["id"],))
-        conn.commit()
-        conn.close()
-        flash("Email verified successfully! You can now log in.", "success")
-        return redirect(url_for("login"))
-    else:
-        conn.close()
+    # Verify that the code matches what we sent
+    if pending_reg['verification_code'] != code:
         flash("Invalid verification code.", "danger")
         return render_template("verify_code.html", username=username, email=email)
+
+    # Code is valid - NOW save user to database
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        print(f"[VERIFY] Code validated. Saving user {pending_reg['username']} to database")
+        
+        # Insert verified user into database (verified=1)
+        cur.execute(
+            "INSERT INTO users (username, email, password, role, verified, verification_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (pending_reg['username'], pending_reg['email'], pending_reg['hashed_password'], "technician", 1, None, pending_reg['created_at'])
+        )
+        conn.commit()
+        conn.close()
+        
+        # Clear session data
+        session.pop('pending_registration', None)
+        print(f"[VERIFY] User {pending_reg['username']} saved and verified")
+        
+        flash("Email verified successfully! You can now log in.", "success")
+        return redirect(url_for("login"))
+    except sqlite3.IntegrityError as e:
+        # User may have been registered by another request
+        session.pop('pending_registration', None)
+        print(f"[VERIFY] IntegrityError (likely duplicate): {e}")
+        flash("This username or email is already registered.", "danger")
+        return redirect(url_for("register"))
+    except Exception as e:
+        print(f"[VERIFY] Error saving user: {e}")
+        flash(f"Error during verification: {str(e)}", "danger")
+        return redirect(url_for("register"))
 
 @app.route("/logout")
 @login_required
